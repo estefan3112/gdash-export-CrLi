@@ -23,6 +23,7 @@
 
 #include "config.h"
 
+#include <cmath>
 #include <numeric>
 
 #include "settings.hpp"
