@@ -1,0 +1,35 @@
+name: macOS Test Build
+
+on:
+  push:
+    branches: [ actions-macos-test ]
+  pull_request:
+    branches: [ actions-macos-test ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Homebrew dependencies
+        run: |
+          brew install gettext automake autoconf libtool sdl2 sdl2_mixer sdl2_image
+
+      - name: Make build script executable
+        run: chmod +x make-all.sh
+
+      - name: Run build script
+        run: ./make-all.sh
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gdash-macos-test-build
+          path: |
+            src/gdash
+            src/gdash.app
+            **/gdash
