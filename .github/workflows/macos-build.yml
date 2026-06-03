@@ -17,7 +17,7 @@ jobs:
 
       - name: Install Homebrew dependencies
         run: |
-          brew install gettext automake autoconf libtool sdl2 sdl2_mixer sdl2_image
+          brew install gettext automake autoconf libtool sdl2 sdl2_mixer sdl2_image gtk+3
 
       - name: Make build script executable
         run: chmod +x make-all.sh
