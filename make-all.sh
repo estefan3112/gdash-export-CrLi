@@ -1,4 +1,9 @@
 #!/bin/bash
+#quick fix for macos, I was unable to implement it properly in the build script
+autoreconf -fiv -I /opt/homebrew/opt/gettext/share/gettext/m4 -I /opt/homebrew/opt/gettext/share/aclocal
+export CFLAGS="-I/opt/homebrew/include $CFLAGS"
+export CXXFLAGS="-I/opt/homebrew/include $CXXFLAGS"
+export LDFLAGS="-L/opt/homebrew/lib $LDFLAGS"
 
 sec2min() { printf "%d:%02d" "$((10#$1 / 60))" "$((10#$1 % 60))"; }
 

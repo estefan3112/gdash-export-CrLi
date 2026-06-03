@@ -57,3 +57,4 @@ src/**/*.dirstamp
 /.vs/VSWorkspaceState.json
 # startup item
 # src/gdash.exe
+.DS_Store
