@@ -1,0 +1,1 @@
+../../../../Cellar/hunspell/1.7.3/share/locale/de/LC_MESSAGES/hunspell.mo

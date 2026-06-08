@@ -1,0 +1,1 @@
+../../../../Cellar/midnight-commander/4.8.33/share/locale/de/LC_MESSAGES/mc.mo

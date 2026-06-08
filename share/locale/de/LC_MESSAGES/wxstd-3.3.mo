@@ -1,0 +1,1 @@
+../../../../Cellar/wxwidgets/3.3.2/share/locale/de/LC_MESSAGES/wxstd-3.3.mo

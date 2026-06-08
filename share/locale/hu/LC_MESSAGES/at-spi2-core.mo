@@ -1,0 +1,1 @@
+../../../../Cellar/at-spi2-core/2.60.4/share/locale/hu/LC_MESSAGES/at-spi2-core.mo
