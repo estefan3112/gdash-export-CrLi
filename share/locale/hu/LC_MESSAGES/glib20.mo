@@ -1,1 +1,0 @@
-../../../../Cellar/glib/2.88.1/share/locale/hu/LC_MESSAGES/glib20.mo
