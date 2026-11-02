@@ -97,6 +97,7 @@ public:
     static void show_replays_cb(GtkWidget *widget, gpointer data);
     static void cave_info_cb(GtkWidget *widget, gpointer data);
 
+    bool modal_dialog_open() const;
     static gboolean timing_event_idle_func(gpointer data);
     static gpointer timing_thread(gpointer data);
 
@@ -505,6 +506,22 @@ static gboolean main_window_focus_out_event(GtkWidget *widget, GdkEvent *event, 
 }
 
 
+/* true if a modal window other than the main window is shown (e.g. inside gtk_dialog_run). */
+bool GdMainWindow::modal_dialog_open() const {
+    bool found = false;
+    GList *toplevels = gtk_window_list_toplevels();
+    for (GList *iter = toplevels; iter != NULL; iter = iter->next) {
+        GtkWindow *w = GTK_WINDOW(iter->data);
+        if (GTK_WIDGET(w) != window && gtk_window_get_modal(w) && gtk_widget_get_visible(GTK_WIDGET(w))) {
+            found = true;
+            break;
+        }
+    }
+    g_list_free(toplevels);
+    return found;
+}
+
+
 /* this function is an idle func which will run in the main thread.
  * the main thread has the applicaton, and also it is allowed to use gtk and the other libs. */
 gboolean GdMainWindow::timing_event_idle_func(gpointer data) {
@@ -517,6 +534,14 @@ gboolean GdMainWindow::timing_event_idle_func(gpointer data) {
     if (timer_events_received > 0) {
         /* decrease. (maybe set to zero) */
         g_atomic_int_add(&win->timer_events, -timer_events_received);
+
+        /* macOS fix: while a modal dialog (gtk_dialog_run: Preferences, file
+         * chooser, message boxes...) runs its own nested main loop, do NOT run
+         * the game and redraw the main window from inside that loop. On the
+         * Quartz backend this re-entrant drawing at 50 fps made dialogs stop
+         * accepting mouse clicks after the app lost and regained focus. */
+        if (win->modal_dialog_open())
+            return FALSE;
 
         /* before calling the timer event, process pending gtk events. */
         /* if the computer is slow, and we are lagging behind, this helps keyboard
