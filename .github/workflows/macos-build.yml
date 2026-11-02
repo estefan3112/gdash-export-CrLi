@@ -1,15 +1,15 @@
-name: macOS Test Build
+name: macOS Build
 
 on:
   push:
-    branches: [ actions-macos-test ]
+    branches: [ macos, actions-macos-test ]
   pull_request:
-    branches: [ actions-macos-test ]
+    branches: [ macos ]
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-latest   # Apple Silicon runner
 
     steps:
       - name: Checkout repository
@@ -17,19 +17,19 @@ jobs:
 
       - name: Install Homebrew dependencies
         run: |
-          brew install gettext automake autoconf libtool sdl2 sdl2_mixer sdl2_image gtk+3
+          brew install gettext automake autoconf libtool sdl2 sdl2_mixer sdl2_image \
+                       gtk+3 librsvg adwaita-icon-theme dylibbundler
 
-      - name: Make build script executable
-        run: chmod +x make-all.sh
+      - name: Build
+        run: |
+          chmod +x make-all.sh bundle-macos.sh
+          ./make-all.sh
 
-      - name: Run build script
-        run: ./make-all.sh
+      - name: Create GDash.app
+        run: ./bundle-macos.sh
 
-      - name: Upload build artifacts
+      - name: Upload GDash.app
         uses: actions/upload-artifact@v4
         with:
-          name: gdash-macos-test-build
-          path: |
-            src/gdash
-            src/gdash.app
-            **/gdash
+          name: GDash-macos-arm64
+          path: build/GDash-macos-arm64.zip
