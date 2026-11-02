@@ -171,6 +171,15 @@ GtkWindow *guess_active_toplevel() {
 
     /* if we find a modal window, it is active. */
     GList *toplevels = gtk_window_list_toplevels();
+    /* only consider visible windows: hidden ones must never become a parent
+     * (on macOS showing a child also re-shows its hidden parent). */
+    GList *visible = NULL;
+    for (GList *iter = toplevels; iter != NULL; iter = iter->next)
+        if (gtk_widget_get_visible(GTK_WIDGET(iter->data)))
+            visible = g_list_append(visible, iter->data);
+    g_list_free(toplevels);
+    toplevels = visible;
+
     for (GList *iter = toplevels; iter != NULL; iter = iter->next)
         if (gtk_window_get_modal(GTK_WINDOW(iter->data)))
             parent = (GtkWidget *)iter->data;
@@ -516,7 +525,18 @@ void gd_dialog_add_hint(GtkDialog *dialog, const char *hint) {
 
 
 void gd_show_about_info() {
-    gtk_show_about_dialog(guess_active_toplevel(), "program-name", "GDash", "license", _(About::license), "wrap-license", TRUE, "copyright", About::copyright, "authors", About::authors, "version", PACKAGE_VERSION, "comments", _(About::comments), "translator-credits", _(About::translator_credits), "website", About::website, "artists", About::artists, "documenters", About::documenters, NULL);
+    /* Not gtk_show_about_dialog(): that one is non-modal and only HIDES the
+     * dialog on close, keeping it around. On macOS the hidden dialog could be
+     * picked as parent of the next dialog and reappear unclickable.
+     * Use a modal dialog which is destroyed after closing, like all others. */
+    GtkWindow *parent = guess_active_toplevel();
+    GtkWidget *dialog = gtk_about_dialog_new();
+    if (parent)
+        gtk_window_set_transient_for(GTK_WINDOW(dialog), parent);
+    gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
+    g_object_set(G_OBJECT(dialog), "program-name", "GDash", "license", _(About::license), "wrap-license", TRUE, "copyright", About::copyright, "authors", About::authors, "version", PACKAGE_VERSION, "comments", _(About::comments), "translator-credits", _(About::translator_credits), "website", About::website, "artists", About::artists, "documenters", About::documenters, NULL);
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
 }
 
 

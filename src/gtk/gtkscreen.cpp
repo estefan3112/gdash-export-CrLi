@@ -148,6 +148,11 @@ void GTKScreen::remove_clip_rect() {
 gboolean GTKScreen::draw_event(GtkWidget *drawing_area, cairo_t *cairo_context, gpointer data) {
     GTKScreen *dis = static_cast<GTKScreen*>(data);
     cairo_set_source_surface(cairo_context, dis->back.get(), 0, 0);
+    /* On HiDPI/Retina screens cairo scales the back buffer up when copying it
+     * to the window. The default (bilinear, in software) was so slow it took
+     * the whole frame time. Nearest neighbour is far faster and keeps the
+     * pixel art sharp. */
+    cairo_pattern_set_filter(cairo_get_source(cairo_context), CAIRO_FILTER_NEAREST);
     cairo_rectangle(cairo_context, 0, 0, dis->w, dis->h);
     cairo_fill(cairo_context);
     

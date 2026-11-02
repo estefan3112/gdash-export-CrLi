@@ -506,13 +506,18 @@ static gboolean main_window_focus_out_event(GtkWidget *widget, GdkEvent *event, 
 }
 
 
-/* true if a modal window other than the main window is shown (e.g. inside gtk_dialog_run). */
+/* true if a dialog (modal, or transient for another window) is shown besides the main window. */
 bool GdMainWindow::modal_dialog_open() const {
     bool found = false;
     GList *toplevels = gtk_window_list_toplevels();
     for (GList *iter = toplevels; iter != NULL; iter = iter->next) {
         GtkWindow *w = GTK_WINDOW(iter->data);
-        if (GTK_WIDGET(w) != window && gtk_window_get_modal(w) && gtk_widget_get_visible(GTK_WIDGET(w))) {
+        /* any real dialog window counts, modal or not (the About box from
+         * gtk_show_about_dialog() is not modal). Popups (menus, tooltips)
+         * are GTK_WINDOW_POPUP and are ignored. */
+        if (GTK_WIDGET(w) != window && gtk_widget_get_visible(GTK_WIDGET(w))
+            && gtk_window_get_window_type(w) == GTK_WINDOW_TOPLEVEL
+            && (gtk_window_get_modal(w) || gtk_window_get_transient_for(w) != NULL)) {
             found = true;
             break;
         }
@@ -526,6 +531,14 @@ bool GdMainWindow::modal_dialog_open() const {
  * the main thread has the applicaton, and also it is allowed to use gtk and the other libs. */
 gboolean GdMainWindow::timing_event_idle_func(gpointer data) {
     GdMainWindow *win = static_cast<GdMainWindow *>(data);
+
+    /* re-entrancy guard: the gtk_main_iteration() loop below can dispatch the
+     * next idle func queued by the timer thread, which would run this function
+     * nested inside itself again and again. The user interface (menus) then
+     * starves. Skip nested calls; the outer call does the work. */
+    static bool running = false;
+    if (running)
+        return FALSE;
     /* the number of events received since the last processing.
      * if the computer is slow, or the window is moved by the user with the mouse,
      * then this may be more than one. */
@@ -546,19 +559,13 @@ gboolean GdMainWindow::timing_event_idle_func(gpointer data) {
         /* before calling the timer event, process pending gtk events. */
         /* if the computer is slow, and we are lagging behind, this helps keyboard
          * events to get to the app inside. */
-        #ifdef G_OS_WIN32
+        running = true;
+        /* on all platforms (not only Windows): never loop forever here.
+         * WORKAROUND for https://gitlab.gnome.org/GNOME/gtk/-/issues/5688 */
         int i = 0;
-        #endif
-        while (gtk_events_pending()) {
+        while (gtk_events_pending() && i < 100) {
             gtk_main_iteration();
-            #ifdef G_OS_WIN32
             i++;
-            if (i > 10000) {
-                // WORKAROUND for https://gitlab.gnome.org/GNOME/gtk/-/issues/5688
-                gd_warning("WORKAROUND: frozen window detected");
-                break;
-            }
-            #endif
         }
         win->app->timer_event(win->interval_msec);
 
@@ -570,6 +577,7 @@ gboolean GdMainWindow::timing_event_idle_func(gpointer data) {
             /* only flip if drawn something. */
             win->app->screen->do_the_flip();
         }
+        running = false;
     }
     return FALSE;
 }
