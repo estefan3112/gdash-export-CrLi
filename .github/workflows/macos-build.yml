@@ -1,11 +1,7 @@
 name: macOS Build
 
 on:
-  push:
-    branches: [ macos, actions-macos-test ]
-  pull_request:
-    branches: [ macos ]
-  workflow_dispatch:
+  workflow_dispatch:   # manual only: Actions tab -> macOS Build -> Run workflow
 
 jobs:
   build:
