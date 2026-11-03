@@ -2,6 +2,22 @@ name: macOS Build
 
 on:
   workflow_dispatch:   # manual only: Actions tab -> macOS Build -> Run workflow
+    inputs:
+      publish:
+        description: 'Publish as GitHub release (unticked = test build, artifact only)'
+        type: boolean
+        default: false
+      release_tag:
+        description: 'Release tag, e.g. 1.10.2-mac1 (empty = automatic macos-DATE-COMMIT)'
+        type: string
+        default: ''
+      prerelease:
+        description: 'Mark as pre-release (only used when publishing)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write      # needed to create releases
 
 jobs:
   build:
@@ -56,3 +72,24 @@ jobs:
           # upload our own ditto zip as-is: no extra GitHub zip around it
           # (Archive Utility chokes on GitHub's wrapper zip)
           archive: false
+
+      - name: Publish GitHub release
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_INPUT: ${{ inputs.release_tag }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          TAG="$TAG_INPUT"
+          [ -n "$TAG" ] || TAG="macos-$(date +%Y%m%d)-${GITHUB_SHA::7}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists - choose another tag."; exit 1
+          fi
+          FLAGS=()
+          [ "$PRERELEASE" = "true" ] && FLAGS+=(--prerelease)
+          gh release create "$TAG" build/GDash-macos-arm64.zip \
+            --target "$GITHUB_SHA" \
+            --title "GDash $TAG (macOS, Apple Silicon)" \
+            --notes "Signed and notarized GDash for Apple Silicon Macs. Unzip and move GDash.app to Applications." \
+            "${FLAGS[@]}"
+          echo "Published: $(gh release view "$TAG" --json url -q .url)"
