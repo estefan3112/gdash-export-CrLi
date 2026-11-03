@@ -15,7 +15,7 @@
 #   it was built on, and loaders still linked against /opt/homebrew. This script
 #   relocates the loaders and lets launch.sh write a fresh loaders.cache at start.
 #
-# Optional: SIGN_ID="Developer ID Application: ..." ./bundle-macos.sh
+# Optional: SIGN_ID="Developer ID Application: ..." NOTARY_PROFILE=notary ./bundle-macos.sh
 
 set -euo pipefail
 
@@ -164,6 +164,34 @@ codesign --verify --deep --verbose=1 "$APP"
 step "Zipping"
 rm -f "$SRC/build/GDash-macos-arm64.zip"
 ditto -c -k --keepParent "$APP" "$SRC/build/GDash-macos-arm64.zip"
+
+# ---------------------------------------------------------------- notarize
+# Local:  SIGN_ID="Developer ID Application: ..." NOTARY_PROFILE=notary ./bundle-macos.sh
+# CI:     NOTARY_APPLE_ID / NOTARY_TEAM_ID / NOTARY_PASSWORD set by the workflow
+if [ -n "${SIGN_ID:-}" ] && { [ -n "${NOTARY_PROFILE:-}" ] || [ -n "${NOTARY_APPLE_ID:-}" ]; }; then
+    step "Notarizing (takes a few minutes)"
+    if [ -n "${NOTARY_PROFILE:-}" ]; then
+        AUTH=(--keychain-profile "$NOTARY_PROFILE")
+    else
+        AUTH=(--apple-id "$NOTARY_APPLE_ID" --team-id "$NOTARY_TEAM_ID" --password "$NOTARY_PASSWORD")
+    fi
+    OUT="$(xcrun notarytool submit "$SRC/build/GDash-macos-arm64.zip" "${AUTH[@]}" --wait)"
+    echo "$OUT"
+    if ! echo "$OUT" | grep -q "status: Accepted"; then
+        SUB_ID="$(echo "$OUT" | awk '/^ *id:/{print $2; exit}')"
+        echo "Notarization FAILED - log:"
+        [ -n "$SUB_ID" ] && xcrun notarytool log "$SUB_ID" "${AUTH[@]}" || true
+        exit 1
+    fi
+    step "Stapling and re-zipping"
+    xcrun stapler staple "$APP"
+    rm -f "$SRC/build/GDash-macos-arm64.zip"
+    ditto -c -k --keepParent "$APP" "$SRC/build/GDash-macos-arm64.zip"
+    spctl -a -vv "$APP" || true
+else
+    echo
+    echo "(not notarized - set SIGN_ID and NOTARY_PROFILE to notarize)"
+fi
 
 echo
 echo "Done: $APP"
