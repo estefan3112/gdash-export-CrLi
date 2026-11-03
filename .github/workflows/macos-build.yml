@@ -54,7 +54,9 @@ jobs:
         run: ./bundle-macos.sh
 
       - name: Upload GDash.app
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: GDash-macos-arm64
           path: build/GDash-macos-arm64.zip
+          # upload our own ditto zip as-is: no extra GitHub zip around it
+          # (Archive Utility chokes on GitHub's wrapper zip)
+          archive: false
