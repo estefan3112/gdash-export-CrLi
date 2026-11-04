@@ -13,6 +13,12 @@ mkdir -p "$CACHE_DIR" ~/Library/Logs
 sed "s|@LOADERDIR@|$LOADERS|g" "$DIR/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache.in" \
     > "$CACHE_DIR/loaders.cache"
 
+# Apps started from Finder get no LANG, so "System default" would always be
+# English. Derive it from the macOS language setting (e.g. de_AT -> de_AT.UTF-8).
+if [ -z "${LANG:-}" ]; then
+    MACLOCALE="$(defaults read -g AppleLocale 2>/dev/null | cut -d@ -f1)"
+    [ -n "$MACLOCALE" ] && export LANG="$MACLOCALE.UTF-8"
+fi
 export XDG_DATA_DIRS="$DIR/share"
 export GSETTINGS_SCHEMA_DIR="$DIR/share/glib-2.0/schemas"
 export GDK_PIXBUF_MODULEDIR="$LOADERS"

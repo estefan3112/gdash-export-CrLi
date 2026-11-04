@@ -56,14 +56,21 @@ for d in caves docs music shaders sound themes; do
 done
 cp "$SRC/gamecontrollerdb.txt" "$C/" 2>/dev/null || true
 
-step "Copying translations"
-# bindtextdomain(PACKAGE, cwd) -> Contents/<lang>/LC_MESSAGES/gdash.mo
-for gmo in "$SRC"/po/*.gmo; do
-    [ -f "$gmo" ] || continue
-    lang="$(basename "$gmo" .gmo)"
+step "Compiling translations"
+# GDash calls bindtextdomain(PACKAGE, cwd) -> needs Contents/<lang>/LC_MESSAGES/gdash.mo
+# Compiled here directly from po/*.po: make-all.sh blanks @GMOFILES@ in
+# po/Makefile (gettext 0.17 workaround), so "make" never builds any .gmo files.
+MSGFMT="$BREW/opt/gettext/bin/msgfmt"
+[ -x "$MSGFMT" ] || MSGFMT="$(command -v msgfmt || true)"
+[ -n "$MSGFMT" ] || { echo "msgfmt missing: brew install gettext"; exit 1; }
+for po in "$SRC"/po/*.po; do
+    [ -f "$po" ] || continue
+    lang="$(basename "$po" .po)"
     mkdir -p "$C/$lang/LC_MESSAGES"
-    cp "$gmo" "$C/$lang/LC_MESSAGES/gdash.mo"
+    "$MSGFMT" -o "$C/$lang/LC_MESSAGES/gdash.mo" "$po"
+    echo "  $lang"
 done
+ls "$C"/*/LC_MESSAGES/gdash.mo >/dev/null 2>&1 || { echo "no translations compiled!"; exit 1; }
 
 # ---------------------------------------------------------------- pixbuf loaders
 step "Copying gdk-pixbuf loaders"
