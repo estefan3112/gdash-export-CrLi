@@ -22,6 +22,7 @@
  */
 
 #include "config.h"
+#include <string>
 
 #include <glib/gi18n.h>
 #include <glib.h>
@@ -233,7 +234,7 @@ static void set_page_numbers(Setting *settings) {
 Setting *gd_get_game_settings_array() {
     static Setting settings_static[] = {
         { TypePage, N_("Game") },
-        { TypeStringv, N_("Language"), &gd_language, false, gd_languages_names, N_("The language of the application. Changing this setting requires a restart!") },
+        { TypeStringv, N_("Language"), &gd_language, true, gd_languages_names, N_("The language of the application. Changing this setting requires a restart!") },
         { TypeStringv, N_("Startup cave set"), &gd_startup_cave, false, gd_startup_cave_options, N_("Cave set to load on startup.") },
         { TypeBoolean, N_("All caves selectable"), &gd_all_caves_selectable, false, NULL, N_("All caves and intermissions can be selected at game start.") },
         { TypeBoolean, N_("Import as all selectable"), &gd_import_as_all_caves_selectable, false, NULL, N_("Original, C64 games are imported not with A, E, I, M caves selectable, but all caves (ABCD, EFGH... excluding intermissions). This does not affect BDCFF caves.") },
@@ -611,11 +612,28 @@ void gd_settings_set_locale() {
     if (gd_language < 0 || gd_language >= int(G_N_ELEMENTS(language_locale)))
         gd_language = 0;  /* switch to default, if out of bounds. */
 
+    /* remember the environment as it was at program start, so that
+     * "System default" can restore it after the language was changed
+     * (the language change restarts GDash inside the same process). */
+    static bool env_saved = false;
+    static std::string orig_lang, orig_language;
+    static bool had_lang = false, had_language = false;
+    if (!env_saved) {
+        const char *l = g_getenv("LANG"), *lg = g_getenv("LANGUAGE");
+        had_lang = l != NULL;      if (l) orig_lang = l;
+        had_language = lg != NULL; if (lg) orig_language = lg;
+        env_saved = true;
+    }
+
     /* we set the language environment variable, as gtk and other stuff will use it. */
     g_assert(G_N_ELEMENTS(language_locale) == G_N_ELEMENTS(languages_for_env));
     if (languages_for_env[gd_language] != NULL) {
         g_setenv("LANG", languages_for_env[gd_language], TRUE);
         g_setenv("LANGUAGE", languages_for_env[gd_language], TRUE);
+    } else {
+        /* system default: back to the original environment */
+        if (had_lang) g_setenv("LANG", orig_lang.c_str(), TRUE); else g_unsetenv("LANG");
+        if (had_language) g_setenv("LANGUAGE", orig_language.c_str(), TRUE); else g_unsetenv("LANGUAGE");
     }
 
     /* try to set the locale. */

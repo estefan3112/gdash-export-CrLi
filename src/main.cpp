@@ -373,6 +373,10 @@ restart_from_here:
 
     if (na == Restart) {
         na = StartTitle;
+        /* re-apply the language: changing it in the preferences now triggers
+         * this automatic restart, and all windows are rebuilt below. */
+        gd_settings_set_locale();
+        gd_settings_init_translation();
         #if defined(__linux__) && defined(HAVE_GTK)
         if (gd_graphics_engine == GRAPHICS_ENGINE_GTK) // Linux workaround #65
             gtk_init_check(&argc, &argv);
