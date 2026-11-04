@@ -72,6 +72,23 @@ for po in "$SRC"/po/*.po; do
 done
 ls "$C"/*/LC_MESSAGES/gdash.mo >/dev/null 2>&1 || { echo "no translations compiled!"; exit 1; }
 
+step "Copying GTK translations (stock menu items, Cancel/OK buttons)"
+# GTK looks for gtk30.mo in its Homebrew Cellar path, which does not exist on
+# other Macs. Bundle them; GDash rebinds the gtk30 domain to Contents/share/locale.
+GTK_LOCALE="$(brew --prefix gtk+3)/share/locale"
+for po in "$SRC"/po/*.po; do
+    lang="$(basename "$po" .po)"
+    for dom in gtk30 gtk30-properties; do
+        if [ -f "$GTK_LOCALE/$lang/LC_MESSAGES/$dom.mo" ]; then
+            mkdir -p "$C/share/locale/$lang/LC_MESSAGES"
+            cp "$GTK_LOCALE/$lang/LC_MESSAGES/$dom.mo" "$C/share/locale/$lang/LC_MESSAGES/"
+            echo "  $lang/$dom.mo"
+        else
+            echo "  WARNING: $GTK_LOCALE/$lang/LC_MESSAGES/$dom.mo not found"
+        fi
+    done
+done
+
 # ---------------------------------------------------------------- pixbuf loaders
 step "Copying gdk-pixbuf loaders"
 for f in "$BREW_LOADERS"/*.so; do

@@ -151,6 +151,9 @@ int main(int argc, char *argv[]) {
     #endif
     if (!gtk_init_check(&argc, &argv))
         force_quit_no_gtk = TRUE;
+    /* gtk_init binds GTK's own text domain to its built-in path;
+     * bind again so the macOS bundle's translations win. */
+    gd_settings_init_translation();
     GdkPixbuf *logo = gd_icon();
     gtk_window_set_default_icon(logo);
     g_object_unref(logo);

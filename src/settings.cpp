@@ -669,6 +669,21 @@ void gd_settings_init_translation() {
     //bindtextdomain(PACKAGE, LOCALEDIR);                 /* gdash */
     bindtextdomain(PACKAGE, g_get_current_dir());
     bind_textdomain_codeset(PACKAGE, "UTF-8");
+#ifdef __APPLE__
+    /* macOS app bundle: GTK's own translations (stock items, dialog buttons)
+     * are bundled in Contents/share/locale. GTK's built-in path points into
+     * the Homebrew Cellar of the build machine, which other Macs don't have. */
+    {
+        AutoGFreePtr<char> cwd(g_get_current_dir());
+        AutoGFreePtr<char> gtk_locale(g_build_filename((char *) cwd, "share", "locale", NULL));
+        if (g_file_test(gtk_locale, G_FILE_TEST_IS_DIR)) {
+            bindtextdomain("gtk30", gtk_locale);
+            bind_textdomain_codeset("gtk30", "UTF-8");
+            bindtextdomain("gtk30-properties", gtk_locale);
+            bind_textdomain_codeset("gtk30-properties", "UTF-8");
+        }
+    }
+#endif
 #endif
     textdomain(PACKAGE);    /* set default textdomain to gdash */
 }
