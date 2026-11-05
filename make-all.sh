@@ -57,11 +57,6 @@ rm -vf ./configure ./config.h.in || true
 find . -name "Makefile" -exec rm -vf {} \;
 # NOTE: we keep po/Makefile.in.in, po/POTFILES.in
 
-step "Creating cave list"
-pushd caves
-./create_makefile.sh
-popd
-
 # fix for macOS
 # IMPORTANT:
 # Do NOT use autoreconf here.
@@ -70,6 +65,8 @@ popd
 # GDash's shipped gettext 0.17 templates in po/.
 # We intentionally run autotools manually to preserve the
 # original gettext infrastructure.
+# (The cave list caves/Makefile.am is maintained in git upstream;
+#  run caves/create_makefile.sh by hand only when caves are added.)
 
 step "Generating autotools files"
 aclocal -I /opt/homebrew/opt/gettext/share/gettext/m4 -I /opt/homebrew/opt/gettext/share/aclocal
