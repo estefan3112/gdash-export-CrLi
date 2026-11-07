@@ -1688,7 +1688,13 @@ icon_view_reorder_caves() {
         gtk_tree_path_next(path);
     }
     gtk_tree_path_free(path);
-    g_assert(cave_indices.size() == caveset->caves.size());
+    if (cave_indices.size() != caveset->caves.size()) {
+        /* should not happen anymore (see icon_view_drag_end), but never crash:
+         * keep the cave set unchanged instead. */
+        gd_warning("cave list out of sync with cave set (%d vs %d), order not changed",
+                   (int) cave_indices.size(), (int) caveset->caves.size());
+        return;
+    }
     
     /* overwrite caveset with new cave order. */
     bool changed = false;
@@ -1719,6 +1725,32 @@ icon_view_reorder_caves() {
             }
         }
     }
+}
+
+
+/* WORKAROUND for GTK bug on macOS (issue #17): reordering by drag and drop
+ * sometimes ends as a COPY, so GTK inserts the cave at the new place but never
+ * deletes the original ("drag-data-delete" is not called) -> duplicated cave.
+ * GtkIconView keeps the source row on the drag context under this key until
+ * drag-data-delete clears it. If it is still there at drag-end, and the list has
+ * more entries than the cave set, delete the original row ourselves.
+ * This handler runs before GTK's own drag-end class handler. */
+static void
+icon_view_drag_end(GtkWidget *widget, GdkDragContext *context, gpointer data) {
+    GtkTreeRowReference *ref = (GtkTreeRowReference *) g_object_get_data(G_OBJECT(context), "gtk-icon-view-source-row");
+    if (ref == NULL || !gtk_tree_row_reference_valid(ref))
+        return;     /* normal case: GTK already removed the original */
+    GtkTreeModel *model = gtk_icon_view_get_model(GTK_ICON_VIEW(widget));
+    if (gtk_tree_model_iter_n_children(model, NULL) <= (int) caveset->caves.size())
+        return;     /* nothing duplicated */
+    GtkTreePath *path = gtk_tree_row_reference_get_path(ref);
+    GtkTreeIter iter;
+    if (path && gtk_tree_model_get_iter(model, &iter, path)) {
+        gd_debug("drag and drop: removing original cave row left behind by GTK");
+        gtk_list_store_remove(GTK_LIST_STORE(model), &iter);
+    }
+    if (path)
+        gtk_tree_path_free(path);
 }
 
 
@@ -1913,6 +1945,7 @@ select_cave_for_edit(int cave_idx) {
             g_signal_connect(G_OBJECT(iconview_cavelist), "destroy", G_CALLBACK(icon_view_destroyed), NULL);
             g_signal_connect(G_OBJECT(iconview_cavelist), "popup-menu", G_CALLBACK(icon_view_popup_menu), NULL);
             g_signal_connect(G_OBJECT(iconview_cavelist), "button-press-event", G_CALLBACK(icon_view_button_press_event), NULL);
+            g_signal_connect(G_OBJECT(iconview_cavelist), "drag-end", G_CALLBACK(icon_view_drag_end), NULL);
 
             gtk_icon_view_set_text_column(GTK_ICON_VIEW(iconview_cavelist), NAME_COLUMN);
             gtk_icon_view_set_pixbuf_column(GTK_ICON_VIEW(iconview_cavelist), PIXBUF_COLUMN);
